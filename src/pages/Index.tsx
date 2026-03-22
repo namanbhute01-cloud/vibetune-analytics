@@ -8,10 +8,10 @@ import { LiveClock } from "@/components/LiveClock";
 import { Camera, Users, Music, Activity, Flame } from "lucide-react";
 
 const ageBreakdown = [
-  { range: "18–25", count: 8, color: "hsl(38 92% 50%)" },
-  { range: "26–35", count: 14, color: "hsl(25 80% 55%)" },
-  { range: "36–45", count: 6, color: "hsl(152 60% 42%)" },
-  { range: "46+", count: 3, color: "hsl(220 10% 50%)" },
+  { range: "18–25", count: 8, color: "hsl(43 96% 56%)" },
+  { range: "26–35", count: 14, color: "hsl(173 58% 39%)" },
+  { range: "36–45", count: 6, color: "hsl(262 52% 62%)" },
+  { range: "46+", count: 3, color: "hsl(346 72% 58%)" },
 ];
 
 const cameras = [
@@ -47,10 +47,10 @@ const Dashboard = () => {
 
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Camera} label="Active Cameras" value={3} sub="1 offline" delay={100} trend="neutral" />
-          <StatCard icon={Users} label="People Detected" value={43} sub="+7 last 10 min" delay={160} trend="up" />
-          <StatCard icon={Activity} label="Avg Age" value={28} sub="Trending younger" delay={220} glow trend="down" />
-          <StatCard icon={Music} label="Playlist Match" value="92%" sub="Pop / Indie" delay={280} trend="up" />
+          <StatCard icon={Camera} label="Active Cameras" value={3} sub="1 offline" delay={100} trend="neutral" color="teal" />
+          <StatCard icon={Users} label="People Detected" value={43} sub="+7 last 10 min" delay={160} trend="up" color="rose" />
+          <StatCard icon={Activity} label="Avg Age" value={28} sub="Trending younger" delay={220} glow trend="down" color="amber" />
+          <StatCard icon={Music} label="Playlist Match" value="92%" sub="Pop / Indie" delay={280} trend="up" color="violet" />
         </div>
 
         {/* Main grid */}
@@ -60,7 +60,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-3">
               <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Live Feeds</h2>
               <div className="flex-1 h-px bg-border/30" />
-              <span className="text-[10px] text-primary font-mono tabular-nums pulse-dot pr-4">4 cameras</span>
+              <span className="text-[10px] text-[hsl(var(--info))] font-mono tabular-nums pulse-dot pr-4">4 cameras</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {cameras.map((cam, i) => (
