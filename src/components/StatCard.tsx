@@ -48,7 +48,7 @@ const colorMap = {
 function useAnimatedCounter(target: number, duration = 1200) {
   const [count, setCount] = useState(0);
   const started = useRef(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
