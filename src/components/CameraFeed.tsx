@@ -1,6 +1,6 @@
 import { AnimatedCard } from "./AnimatedCard";
 import { Camera, Users, Wifi, WifiOff, Maximize2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface CameraFeedProps {
   name: string;
@@ -10,12 +10,20 @@ interface CameraFeedProps {
   delay?: number;
 }
 
-export function CameraFeed({ name, location, peopleCount, status, delay = 0 }: CameraFeedProps) {
-  const [expanded, setExpanded] = useState(false);
+function LiveTimestamp() {
+  const [time, setTime] = useState(new Date().toLocaleTimeString());
 
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <>{time}</>;
+}
+
+export function CameraFeed({ name, location, peopleCount, status, delay = 0 }: CameraFeedProps) {
   return (
     <AnimatedCard delay={delay} className="overflow-hidden p-0 group cursor-pointer">
-      {/* Simulated feed area */}
       <div className="relative aspect-video bg-[hsl(230_18%_4%)] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]"
           style={{
@@ -55,9 +63,6 @@ export function CameraFeed({ name, location, peopleCount, status, delay = 0 }: C
                 backgroundSize: "40px 40px"
               }} />
             </div>
-
-            {/* Scanning line animation */}
-            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--info)/0.3)] to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[scanline_2s_ease-in-out_infinite]" />
           </>
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground/50 group-hover:text-muted-foreground/70 transition-colors">
@@ -75,24 +80,11 @@ export function CameraFeed({ name, location, peopleCount, status, delay = 0 }: C
           <p className="text-xs text-muted-foreground">{location}</p>
         </div>
         {status === "live" ? (
-          <div className="flex items-center gap-1.5">
-            <Wifi className="w-3.5 h-3.5 text-[hsl(var(--success))]" />
-          </div>
+          <Wifi className="w-3.5 h-3.5 text-[hsl(var(--success))]" />
         ) : (
           <WifiOff className="w-3.5 h-3.5 text-muted-foreground/40" />
         )}
       </div>
     </AnimatedCard>
   );
-}
-
-function LiveTimestamp() {
-  const [time, setTime] = useState(new Date().toLocaleTimeString());
-  
-  useState;
-  
-  // Update every second
-  import("react").then(({ useEffect }) => {});
-  
-  return <>{time}</>;
 }
