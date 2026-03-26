@@ -8,7 +8,7 @@ export const useCameras = () => {
   const fetchCameras = useCallback(async () => {
     try {
       const data = await cameras.list();
-      setList(data.sources || []);
+      setList(Array.isArray(data) ? data : (data.sources || []));
     } catch (err: any) {
       setError(err.message);
     }
@@ -16,6 +16,8 @@ export const useCameras = () => {
 
   useEffect(() => {
     fetchCameras();
+    const interval = setInterval(fetchCameras, 5000);
+    return () => clearInterval(interval);
   }, [fetchCameras]);
 
   const updateSettings = async (id: number, settings: any) => {

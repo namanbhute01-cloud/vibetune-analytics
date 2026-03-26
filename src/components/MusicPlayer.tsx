@@ -23,19 +23,31 @@ export const MusicPlayer: React.FC = () => {
   const songName = status.song || 'Ready to Play';
   const progress = status.percent || 0;
   const volume = status.volume || 70;
+  const group = status.group || 'adults';
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border px-4 py-3 h-24 flex items-center justify-between shadow-lg">
-      {/* Left: Song Info */}
+    <div className="bg-background/80 backdrop-blur-md border-t border-border px-4 py-3 h-24 flex items-center justify-between shadow-lg">
+      {/* Left: Song Info & Group Badge */}
       <div className="flex items-center gap-4 w-1/3">
-        <div className="w-14 h-14 bg-accent/20 rounded-md flex items-center justify-center border border-border shadow-inner">
-          <Music className="w-6 h-6 text-primary animate-pulse" />
+        <div className="relative w-14 h-14 bg-accent/20 rounded-md flex items-center justify-center border border-border shadow-inner group">
+          <Music className={cn("w-6 h-6 text-primary", isPlaying && "animate-pulse")} />
+          <div className="absolute -top-1 -right-1">
+             <span className="flex h-2 w-2">
+                <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75", isPlaying ? "animate-ping bg-green-500" : "bg-muted-foreground")} />
+                <span className={cn("relative inline-flex rounded-full h-2 w-2", isPlaying ? "bg-green-500" : "bg-muted-foreground")} />
+             </span>
+          </div>
         </div>
         <div className="flex flex-col overflow-hidden">
           <span className="font-semibold text-sm truncate">{songName}</span>
-          <span className="text-xs text-muted-foreground uppercase tracking-widest">
-            {status.playing ? 'Now Playing' : 'Paused'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              {isPlaying ? 'Now Playing' : 'Paused'}
+            </span>
+            <span className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-1 rounded">
+                {group}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -46,11 +58,11 @@ export const MusicPlayer: React.FC = () => {
             variant="ghost" 
             size="icon" 
             onClick={toggleShuffle}
-            className={cn("hover:text-primary transition-colors", status.shuffle && "text-primary")}
+            className={cn("hover:text-primary transition-colors h-8 w-8", status.shuffle && "text-primary")}
           >
             <Shuffle className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={prev}>
+          <Button variant="ghost" size="icon" onClick={prev} className="h-8 w-8">
             <SkipBack className="w-5 h-5 fill-current" />
           </Button>
           <Button 
@@ -61,16 +73,16 @@ export const MusicPlayer: React.FC = () => {
           >
             {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={next}>
+          <Button variant="ghost" size="icon" onClick={next} className="h-8 w-8">
             <SkipForward className="w-5 h-5 fill-current" />
           </Button>
         </div>
         <div className="w-full flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-8 text-right">
+          <span className="text-[10px] text-muted-foreground w-8 text-right font-mono">
             {Math.floor(progress)}%
           </span>
           <Progress value={progress} className="h-1 w-full" />
-          <span className="text-[10px] text-muted-foreground w-8">
+          <span className="text-[10px] text-muted-foreground w-8 font-mono">
             100%
           </span>
         </div>

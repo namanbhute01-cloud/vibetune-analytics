@@ -25,7 +25,7 @@ export const playback = {
   prev: () => api.post('/playback/prev'),
   shuffle: () => api.post('/playback/shuffle'),
   getStatus: () => api.get('/playback/status'),
-  setVolume: (vol: number) => api.post(`/playback/volume?vol=${vol}`), // Adjusting to match probable backend or standard pattern
+  setVolume: (vol: number) => api.post('/playback/volume', { level: vol }),
 };
 
 export const vibe = {
@@ -36,9 +36,12 @@ export const vibe = {
 export const cameras = {
   list: () => api.get('/cameras'),
   updateSettings: (id: number, settings: any) => api.post(`/cameras/${id}/settings`, settings),
+  feedUrl: (id: number) => `/api/cameras/feed/${id}`,
 };
 
 export const faces = {
   getStats: () => api.get('/faces/stats'),
+  getSummary: () => api.get('/faces/summary'),
+  getDriveStatus: () => api.get('/faces/drive/status'),
   sync: () => api.post('/faces/sync'),
 };

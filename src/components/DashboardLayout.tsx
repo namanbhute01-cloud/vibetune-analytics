@@ -1,14 +1,15 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { DriveStatus } from "./DriveStatus";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useVibeStream } from "@/hooks/useVibeStream";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { data: wsData } = useWebSocket();
-  const vibeStatus = wsData?.type === 'status' ? wsData.vibe : null;
-  const isTransitioning = vibeStatus?.next_vibe !== null;
+  const { data: wsData } = useVibeStream();
+  const systemStatus = wsData?.type === 'status' ? wsData : null;
+  const vibeStatus = systemStatus?.vibe || null;
+  const isTransitioning = vibeStatus && vibeStatus.next_vibe !== null;
 
   return (
     <SidebarProvider>
@@ -38,14 +39,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--success))] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--success))]" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                 </span>
                 System Online
               </div>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-6 scrollbar-thin">
+          <main className="flex-1 overflow-auto p-6 scrollbar-thin pb-24">
             {children}
           </main>
         </div>

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatCard } from "@/components/StatCard";
 import { CameraGrid } from "@/components/CameraGrid";
@@ -6,35 +7,54 @@ import { AgeGauge } from "@/components/AgeGauge";
 import { PlaylistQueue } from "@/components/PlaylistQueue";
 import { LiveClock } from "@/components/LiveClock";
 import { Camera, Users, Music, Activity, Flame } from "lucide-react";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useVibeStream } from "@/hooks/useVibeStream";
 import { useCameras } from "@/hooks/useCameras";
-import { usePlayback } from "@/hooks/usePlayback";
+import { api } from "@/lib/api";
 
 const Dashboard = () => {
-  const { data: wsData } = useWebSocket();
+  const { data: wsData } = useVibeStream();
   const { list: cameraList } = useCameras();
-  const { status: playbackStatus } = usePlayback();
+  
+  const [faces, setFaces] = useState<any>(null);
+  const [journal, setJournal] = useState<any>(null);
 
-  // Extract real-time state
+  useEffect(() => {
+    const loadFaces = () => api.get('/faces/summary').then(setFaces).catch(() => {});
+    const loadJournal = () => api.get('/vibe/journal').then(setJournal).catch(() => {});
+    
+    loadFaces(); 
+    loadJournal();
+    
+    const faceInterval = setInterval(loadFaces, 10000);
+    const journalInterval = setInterval(loadJournal, 5000);
+    
+    return () => {
+      clearInterval(faceInterval);
+      clearInterval(journalInterval);
+    };
+  }, []);
+
+  // Extract real-time state from WebSocket or fallback to polled data
   const systemStatus = wsData?.type === 'status' ? wsData : null;
   const vibe = systemStatus?.vibe || { current_vibe: 'Searching...', journal_size: 0, dominant_now: '...' };
   const player = systemStatus?.player || { playing: false, song: 'Idle' };
+  const faceStats = systemStatus?.faces || faces || { total_unique: 0, by_group: {} };
   
   // Calculate dynamic stats
   const activeCams = cameraList.length;
-  const peopleDetected = wsData?.type === 'detection' ? wsData.count : 0; // Recent frame count
-  const avgAge = vibe.dominant_now || 25;
+  const peopleDetected = wsData?.type === 'detection' ? (wsData.data?.length || 0) : 0; 
+  const avgAge = vibe.dominant_now || '...';
 
   const ageBreakdown = [
-    { range: "Kids", count: vibe.current_vibe === 'kids' ? 1 : 0, color: "hsl(43 96% 56%)" },
-    { range: "Youths", count: vibe.current_vibe === 'youths' ? 1 : 0, color: "hsl(173 58% 39%)" },
-    { range: "Adults", count: vibe.current_vibe === 'adults' ? 1 : 0, color: "hsl(262 52% 62%)" },
-    { range: "Seniors", count: vibe.current_vibe === 'seniors' ? 1 : 0, color: "hsl(346 72% 58%)" },
+    { range: "Kids", count: faceStats.by_group?.kids || 0, color: "hsl(43 96% 56%)" },
+    { range: "Youths", count: faceStats.by_group?.youths || 0, color: "hsl(173 58% 39%)" },
+    { range: "Adults", count: faceStats.by_group?.adults || 0, color: "hsl(262 52% 62%)" },
+    { range: "Seniors", count: faceStats.by_group?.seniors || 0, color: "hsl(346 72% 58%)" },
   ];
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-8 pb-24"> {/* Added pb for MusicPlayer offset */}
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div
           className="flex items-end justify-between gap-4 pb-2 border-b border-border/30"
@@ -58,8 +78,8 @@ const Dashboard = () => {
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={Camera} label="Active Cameras" value={activeCams} sub="All streams online" delay={100} trend="neutral" color="teal" />
-          <StatCard icon={Users} label="Recent Detects" value={peopleDetected} sub="Last processed frame" delay={160} trend="up" color="rose" />
-          <StatCard icon={Activity} label="Current Vibe" value={vibe.current_vibe.toUpperCase()} sub={`Log: ${vibe.journal_size} events`} delay={220} glow trend="neutral" color="amber" />
+          <StatCard icon={Users} label="Unique Faces" value={faceStats.total_unique} sub="Across all time" delay={160} trend="up" color="rose" />
+          <StatCard icon={Activity} label="Current Vibe" value={vibe.current_vibe?.toUpperCase()} sub={`Log: ${vibe.journal_size} events`} delay={220} glow trend="neutral" color="amber" />
           <StatCard icon={Music} label="Music Status" value={player.playing ? "PLAYING" : "PAUSED"} sub={player.song} delay={280} trend="up" color="violet" />
         </div>
 

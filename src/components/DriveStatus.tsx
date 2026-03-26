@@ -5,55 +5,49 @@ import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const DriveStatus: React.FC = () => {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<any>(null);
 
-  const fetchStats = async () => {
+  const fetchStatus = async () => {
     try {
-      const data = await faces.getStats();
-      setStats(data);
+      const data = await faces.getDriveStatus();
+      setStatus(data);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to fetch drive status', err);
     }
   };
 
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 30000); // 30s poll
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleSync = async () => {
-    setLoading(true);
-    await faces.sync();
-    await fetchStats();
-    setLoading(false);
-  };
+  if (!status) return null;
 
-  if (!stats) return null;
-
-  const isConnected = stats.last_sync > 0;
+  const isConnected = status.connected;
 
   return (
     <Badge 
       variant="outline" 
       className={cn(
-        "flex items-center gap-2 px-3 py-1 bg-background/50 border-border cursor-help",
-        isConnected ? "text-green-500" : "text-muted-foreground"
+        "gap-1.5 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider transition-colors",
+        isConnected ? "text-green-500 border-green-500/20 bg-green-500/5" : "text-muted-foreground border-border bg-muted/5"
       )}
-      title={`Last Sync: ${isConnected ? new Date(stats.last_sync * 1000).toLocaleTimeString() : 'Never'}`}
     >
-      {isConnected ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
-      <span className="text-[10px] font-medium tracking-tight">
-        {stats.total_uploaded} UPLOADED
-      </span>
-      <button 
-        onClick={(e) => { e.stopPropagation(); handleSync(); }}
-        disabled={loading}
-        className="ml-1 hover:text-foreground transition-colors disabled:opacity-50"
-      >
-        <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
-      </button>
+      {isConnected ? (
+        <>
+          <Cloud className="w-3 h-3" />
+          <span>Synced</span>
+          {status.pending_count > 0 && (
+            <span className="text-[8px] opacity-70 ml-1">({status.pending_count} pending)</span>
+          )}
+        </>
+      ) : (
+        <>
+          <CloudOff className="w-3 h-3" />
+          <span>Local Only</span>
+        </>
+      )}
     </Badge>
   );
 };
