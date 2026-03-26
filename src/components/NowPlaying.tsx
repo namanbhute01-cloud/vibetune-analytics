@@ -1,22 +1,26 @@
 import { AnimatedCard } from "./AnimatedCard";
 import { Music, SkipBack, Play, Pause, SkipForward, Volume2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { usePlayback } from "@/hooks/usePlayback";
+import { cn } from "@/lib/utils";
 
 export function NowPlaying() {
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(58);
-  const [volume, setVolume] = useState(72);
+  const { status, play, pause, next, prev, setVolume } = usePlayback();
 
-  // Simulate progress when playing
-  useEffect(() => {
-    if (!isPlaying) return;
-    const id = setInterval(() => {
-      setProgress(p => p >= 100 ? 0 : p + 0.3);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isPlaying]);
+  if (!status) return (
+    <AnimatedCard delay={400} className="glow-violet border-[hsl(var(--violet)/0.2)] flex items-center justify-center h-[320px]">
+      <div className="text-center space-y-2 opacity-50">
+        <Music className="w-12 h-12 mx-auto mb-4 animate-pulse" />
+        <p className="text-sm font-medium">Connecting to Alchemist Engine...</p>
+      </div>
+    </AnimatedCard>
+  );
 
-  const currentTime = Math.floor((progress / 100) * 232);
+  const isPlaying = status.playing;
+  const progress = status.percent || 0;
+  const volume = status.volume || 70;
+  const songName = status.song || "No Track Loaded";
+
+  const currentTime = Math.floor((progress / 100) * 232); // Approximate for UI
   const mins = Math.floor(currentTime / 60);
   const secs = currentTime % 60;
 
@@ -42,7 +46,7 @@ export function NowPlaying() {
 
         <div className="flex items-center gap-4">
           {/* Vinyl disc */}
-          <div className="relative w-16 h-16 shrink-0 cursor-pointer group/vinyl" onClick={() => setIsPlaying(!isPlaying)}>
+          <div className="relative w-16 h-16 shrink-0 cursor-pointer group/vinyl" onClick={() => isPlaying ? pause() : play()}>
             <div className={cn(
               "w-16 h-16 rounded-full bg-[hsl(230_20%_8%)] border border-border/50 flex items-center justify-center transition-all duration-300",
               isPlaying && "animate-[spin_3s_linear_infinite]",
@@ -62,29 +66,21 @@ export function NowPlaying() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">Midnight City</p>
-            <p className="text-xs text-muted-foreground truncate">M83 · Hurry Up, We're Dreaming</p>
+            <p className="text-sm font-semibold truncate">{songName}</p>
+            <p className="text-xs text-muted-foreground truncate">Vibe Controlled Ambiance</p>
 
             {/* Interactive progress bar */}
             <div className="mt-3 flex items-center gap-2">
               <span className="text-[10px] text-muted-foreground font-mono tabular-nums">{mins}:{secs.toString().padStart(2, '0')}</span>
-              <div 
-                className="flex-1 h-1.5 bg-muted rounded-full overflow-visible relative cursor-pointer group/progress"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setProgress(((e.clientX - rect.left) / rect.width) * 100);
-                }}
-              >
-                <div className="h-full bg-[hsl(var(--violet))] rounded-full relative transition-all duration-150" style={{ width: `${progress}%` }}>
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[hsl(var(--violet))] border-2 border-background scale-0 group-hover/progress:scale-100 transition-transform duration-150" />
-                </div>
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-[hsl(var(--violet))] rounded-full transition-all duration-150" style={{ width: `${progress}%` }} />
               </div>
-              <span className="text-[10px] text-muted-foreground font-mono tabular-nums">3:52</span>
+              <span className="text-[10px] text-muted-foreground font-mono tabular-nums">{Math.floor(progress)}%</span>
             </div>
           </div>
         </div>
 
-        {/* Waveform - responds to play state */}
+        {/* Waveform */}
         <div className="flex items-center justify-center gap-[2px] mt-4 mb-2 h-6">
           {Array.from({ length: 32 }).map((_, i) => (
             <div
@@ -104,11 +100,11 @@ export function NowPlaying() {
 
         {/* Controls */}
         <div className="flex items-center justify-center gap-5">
-          <button className="text-muted-foreground hover:text-foreground transition-all active:scale-90 duration-150 hover:bg-muted/50 rounded-full p-2 -m-2">
+          <button onClick={() => prev()} className="text-muted-foreground hover:text-foreground transition-all active:scale-90 duration-150 hover:bg-muted/50 rounded-full p-2 -m-2">
             <SkipBack className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={() => isPlaying ? pause() : play()}
             className={cn(
               "w-11 h-11 rounded-full flex items-center justify-center text-white transition-all active:scale-90 duration-150",
               isPlaying
@@ -119,7 +115,7 @@ export function NowPlaying() {
           >
             {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
           </button>
-          <button className="text-muted-foreground hover:text-foreground transition-all active:scale-90 duration-150 hover:bg-muted/50 rounded-full p-2 -m-2">
+          <button onClick={() => next()} className="text-muted-foreground hover:text-foreground transition-all active:scale-90 duration-150 hover:bg-muted/50 rounded-full p-2 -m-2">
             <SkipForward className="w-4 h-4" />
           </button>
           <div className="ml-auto flex items-center gap-2 text-muted-foreground group/vol">
@@ -140,8 +136,4 @@ export function NowPlaying() {
       </div>
     </AnimatedCard>
   );
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
 }

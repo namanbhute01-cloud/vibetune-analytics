@@ -1,30 +1,40 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatCard } from "@/components/StatCard";
-import { CameraFeed } from "@/components/CameraFeed";
+import { CameraGrid } from "@/components/CameraGrid";
 import { NowPlaying } from "@/components/NowPlaying";
 import { AgeGauge } from "@/components/AgeGauge";
 import { PlaylistQueue } from "@/components/PlaylistQueue";
 import { LiveClock } from "@/components/LiveClock";
 import { Camera, Users, Music, Activity, Flame } from "lucide-react";
-
-const ageBreakdown = [
-  { range: "18–25", count: 8, color: "hsl(43 96% 56%)" },
-  { range: "26–35", count: 14, color: "hsl(173 58% 39%)" },
-  { range: "36–45", count: 6, color: "hsl(262 52% 62%)" },
-  { range: "46+", count: 3, color: "hsl(346 72% 58%)" },
-];
-
-const cameras = [
-  { name: "Cam 01 — Entrance", location: "Main Door", peopleCount: 12, status: "live" as const },
-  { name: "Cam 02 — Dining Hall", location: "Floor 1", peopleCount: 23, status: "live" as const },
-  { name: "Cam 03 — Bar Area", location: "West Wing", peopleCount: 8, status: "live" as const },
-  { name: "Cam 04 — Terrace", location: "Rooftop", peopleCount: 0, status: "offline" as const },
-];
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useCameras } from "@/hooks/useCameras";
+import { usePlayback } from "@/hooks/usePlayback";
 
 const Dashboard = () => {
+  const { data: wsData } = useWebSocket();
+  const { list: cameraList } = useCameras();
+  const { status: playbackStatus } = usePlayback();
+
+  // Extract real-time state
+  const systemStatus = wsData?.type === 'status' ? wsData : null;
+  const vibe = systemStatus?.vibe || { current_vibe: 'Searching...', journal_size: 0, dominant_now: '...' };
+  const player = systemStatus?.player || { playing: false, song: 'Idle' };
+  
+  // Calculate dynamic stats
+  const activeCams = cameraList.length;
+  const peopleDetected = wsData?.type === 'detection' ? wsData.count : 0; // Recent frame count
+  const avgAge = vibe.dominant_now || 25;
+
+  const ageBreakdown = [
+    { range: "Kids", count: vibe.current_vibe === 'kids' ? 1 : 0, color: "hsl(43 96% 56%)" },
+    { range: "Youths", count: vibe.current_vibe === 'youths' ? 1 : 0, color: "hsl(173 58% 39%)" },
+    { range: "Adults", count: vibe.current_vibe === 'adults' ? 1 : 0, color: "hsl(262 52% 62%)" },
+    { range: "Seniors", count: vibe.current_vibe === 'seniors' ? 1 : 0, color: "hsl(346 72% 58%)" },
+  ];
+
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8 pb-24"> {/* Added pb for MusicPlayer offset */}
         {/* Header */}
         <div
           className="flex items-end justify-between gap-4 pb-2 border-b border-border/30"
@@ -36,10 +46,10 @@ const Dashboard = () => {
               <span className="text-xs font-medium text-primary uppercase tracking-widest">Live Ambiance Control</span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight leading-none">
-              Dashboard
+              Vibe Alchemist
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
-              Real-time ambiance intelligence for your restaurant
+              Real-time ambiance intelligence active for {activeCams} sources
             </p>
           </div>
           <LiveClock />
@@ -47,10 +57,10 @@ const Dashboard = () => {
 
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Camera} label="Active Cameras" value={3} sub="1 offline" delay={100} trend="neutral" color="teal" />
-          <StatCard icon={Users} label="People Detected" value={43} sub="+7 last 10 min" delay={160} trend="up" color="rose" />
-          <StatCard icon={Activity} label="Avg Age" value={28} sub="Trending younger" delay={220} glow trend="down" color="amber" />
-          <StatCard icon={Music} label="Playlist Match" value="92%" sub="Pop / Indie" delay={280} trend="up" color="violet" />
+          <StatCard icon={Camera} label="Active Cameras" value={activeCams} sub="All streams online" delay={100} trend="neutral" color="teal" />
+          <StatCard icon={Users} label="Recent Detects" value={peopleDetected} sub="Last processed frame" delay={160} trend="up" color="rose" />
+          <StatCard icon={Activity} label="Current Vibe" value={vibe.current_vibe.toUpperCase()} sub={`Log: ${vibe.journal_size} events`} delay={220} glow trend="neutral" color="amber" />
+          <StatCard icon={Music} label="Music Status" value={player.playing ? "PLAYING" : "PAUSED"} sub={player.song} delay={280} trend="up" color="violet" />
         </div>
 
         {/* Main grid */}
@@ -58,15 +68,12 @@ const Dashboard = () => {
           {/* Camera feeds - 2 cols */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Live Feeds</h2>
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Live Vision Grid</h2>
               <div className="flex-1 h-px bg-border/30" />
-              <span className="text-[10px] text-[hsl(var(--info))] font-mono tabular-nums pulse-dot pr-4">4 cameras</span>
+              <span className="text-[10px] text-[hsl(var(--info))] font-mono tabular-nums pulse-dot pr-4">{activeCams} sources</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {cameras.map((cam, i) => (
-                <CameraFeed key={cam.name} {...cam} delay={300 + i * 80} />
-              ))}
-            </div>
+            
+            <CameraGrid />
           </div>
 
           {/* Right column */}
@@ -76,7 +83,7 @@ const Dashboard = () => {
               <div className="flex-1 h-px bg-border/30" />
             </div>
             <NowPlaying />
-            <AgeGauge avgAge={28} ageBreakdown={ageBreakdown} delay={450} />
+            <AgeGauge avgAge={avgAge} ageBreakdown={ageBreakdown} delay={450} />
             <PlaylistQueue />
           </div>
         </div>
