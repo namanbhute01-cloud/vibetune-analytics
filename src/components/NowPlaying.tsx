@@ -1,10 +1,18 @@
 import { AnimatedCard } from "./AnimatedCard";
 import { Music, SkipBack, Play, Pause, SkipForward, Volume2 } from "lucide-react";
 import { usePlayback } from "@/hooks/usePlayback";
+import { useVibeStream } from "@/hooks/useVibeStream";
 import { cn } from "@/lib/utils";
 
 export function NowPlaying() {
-  const { status, play, pause, next, prev, setVolume } = usePlayback();
+  const { status: polledStatus, play, pause, next, prev, setVolume } = usePlayback();
+  const { data: wsData } = useVibeStream();
+
+  // Combine polled state with real-time vibe updates
+  const wsVibe = wsData?.type === 'vibe_update' ? wsData : (wsData?.type === 'status' ? wsData.vibe : null);
+  const wsPlayer = wsData?.type === 'status' ? wsData.player : null;
+
+  const status = wsPlayer || polledStatus;
 
   if (!status) return (
     <AnimatedCard delay={400} className="glow-violet border-[hsl(var(--violet)/0.2)] flex items-center justify-center h-[320px]">
@@ -15,10 +23,11 @@ export function NowPlaying() {
     </AnimatedCard>
   );
 
-  const isPlaying = status.playing;
-  const progress = status.percent || 0;
+  const isPlaying = status.playing ?? wsVibe?.is_playing ?? false;
+  const progress = status.percent ?? wsVibe?.percent_pos ?? 0;
   const volume = status.volume || 70;
-  const songName = status.song || "No Track Loaded";
+  const songName = status.song !== "None" ? (status.song || wsVibe?.current_song || "Vibing...") : "Ready to Play";
+
 
   const currentTime = Math.floor((progress / 100) * 232); // Approximate for UI
   const mins = Math.floor(currentTime / 60);

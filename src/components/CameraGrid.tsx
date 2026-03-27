@@ -28,9 +28,11 @@ export const CameraGrid: React.FC = () => {
       ) : (
         <Card className="col-span-full py-12 flex flex-col items-center justify-center text-muted-foreground border-dashed">
           <VideoOff className="w-12 h-12 mb-4 opacity-20" />
-          <p>No camera sources found in .env</p>
+          <p className="text-sm font-medium">No active camera sources detected.</p>
+          <p className="text-xs opacity-60 mt-1">Check CAMERA_SOURCES in your backend .env file.</p>
         </Card>
       )}
+
     </div>
   );
 };

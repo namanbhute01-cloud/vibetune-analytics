@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: wsData } = useVibeStream();
-  const systemStatus = wsData?.type === 'status' ? wsData : null;
-  const vibeStatus = systemStatus?.vibe || null;
+  
+  // Handle both full status and incremental vibe updates
+  const vibeStatus = wsData?.type === 'vibe_update' ? wsData : (wsData?.type === 'status' ? wsData.vibe : null);
   const isTransitioning = vibeStatus && vibeStatus.next_vibe !== null;
+
 
   return (
     <SidebarProvider>

@@ -36,14 +36,23 @@ const Dashboard = () => {
 
   // Extract real-time state from WebSocket or fallback to polled data
   const systemStatus = wsData?.type === 'status' ? wsData : null;
-  const vibe = systemStatus?.vibe || { current_vibe: 'Searching...', journal_size: 0, dominant_now: '...' };
-  const player = systemStatus?.player || { playing: false, song: 'Idle' };
+  const vibeUpdate = wsData?.type === 'vibe_update' ? wsData : null;
+  
+  // Vibe state comes from either 'status' or 'vibe_update'
+  const vibe = vibeUpdate || systemStatus?.vibe || { current_vibe: 'Searching...', journal_size: 0, dominant_now: '...' };
+  
+  // Player state can also be updated in 'vibe_update' now
+  const player = (vibeUpdate && vibeUpdate.is_playing !== undefined) 
+    ? { playing: vibeUpdate.is_playing, song: vibeUpdate.current_song_group } 
+    : (systemStatus?.player || { playing: false, song: 'Idle' });
+  
   const faceStats = systemStatus?.faces || faces || { total_unique: 0, by_group: {} };
   
   // Calculate dynamic stats
   const activeCams = cameraList.length;
   const peopleDetected = wsData?.type === 'detection' ? (wsData.data?.length || 0) : 0; 
-  const avgAge = vibe.dominant_now || '...';
+  const avgAge = vibe.dominant_now || vibe.detected_group || '...';
+
 
   const ageBreakdown = [
     { range: "Kids", count: faceStats.by_group?.kids || 0, color: "hsl(43 96% 56%)" },
