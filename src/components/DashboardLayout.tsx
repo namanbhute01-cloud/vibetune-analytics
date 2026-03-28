@@ -6,11 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { data: wsData } = useVibeStream();
+  const vibeState = useVibeStream();
   
-  // Handle both full status and incremental vibe updates
-  const vibeStatus = wsData?.type === 'vibe_update' ? wsData : (wsData?.type === 'status' ? wsData.vibe : null);
-  const isTransitioning = vibeStatus && vibeStatus.next_vibe !== null;
+  // Use vibeState directly (it's flat now)
+  const isTransitioning = vibeState && vibeState.next_vibe !== null;
 
 
   return (

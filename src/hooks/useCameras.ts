@@ -1,33 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { cameras } from '@/lib/api';
+import { useState, useEffect } from 'react'
+import { api } from '@/lib/api'
 
-export const useCameras = () => {
-  const [list, setList] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchCameras = useCallback(async () => {
-    try {
-      const data = await cameras.list();
-      setList(Array.isArray(data) ? data : (data.sources || []));
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }, []);
+export function useCameras() {
+  const [cameras, setCameras] = useState<any[]>([])
 
   useEffect(() => {
-    fetchCameras();
-    const interval = setInterval(fetchCameras, 5000);
-    return () => clearInterval(interval);
-  }, [fetchCameras]);
+    const poll = () => api.getCameras()
+      .then(d => setCameras(Array.isArray(d) ? d : []))
+      .catch(() => {})
+    poll()
+    const id = setInterval(poll, 5000)
+    return () => clearInterval(id)
+  }, [])
 
-  const updateSettings = async (id: number, settings: any) => {
-    try {
-      await cameras.updateSettings(id, settings);
-      fetchCameras();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  return { list, error, updateSettings, refresh: fetchCameras };
-};
+  return cameras
+}

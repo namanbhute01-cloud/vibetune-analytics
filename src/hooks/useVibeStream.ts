@@ -1,64 +1,41 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react'
 
 export interface VibeState {
-  status: string;
-  current_vibe: string;
-  detected_group: string;
-  journal_count: number;
-  next_vibe: string | null;
-  type?: string;
-  player?: any;
-  vibe?: any;
-  vault?: any;
-  faces?: any;
+  status: string
+  detected_group: string
+  current_vibe: string
+  age: string
+  journal_count: number
+  percent_pos: number
+  is_playing: boolean
+  paused: boolean
+  shuffle: boolean
+  current_song: string
+  next_vibe: string | null
 }
 
-export function useVibeStream(url?: string) {
-  const [data, setData] = useState<VibeState | null>(null);
-  const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting');
-  const wsRef = useRef<WebSocket | null>(null);
-
-  const connect = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const finalUrl = url || `${protocol}//${host}/ws`;
-
-    console.log(`Connecting to WS: ${finalUrl}`);
-    const socket = new WebSocket(finalUrl);
-    wsRef.current = socket;
-
-    socket.onopen = () => {
-      setStatus('open');
-      console.log('WS Connected');
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        setData(message);
-      } catch (err) {
-        console.error('Failed to parse WS message', err);
-      }
-    };
-
-    socket.onclose = () => {
-      setStatus('closed');
-      console.log('WS Disconnected - reconnecting in 2s...');
-      setTimeout(connect, 2000);
-    };
-
-    socket.onerror = (err) => {
-      console.error('WS Error', err);
-      socket.close();
-    };
-  }, [url]);
+export function useVibeStream(): VibeState | null {
+  const [state, setState] = useState<VibeState | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    connect();
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, [connect]);
+    function connect() {
+      // MUST use window.location.host — not hardcoded localhost
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`)
+      wsRef.current = ws
+      ws.onmessage = (e) => {
+        try { setState(JSON.parse(e.data)) } catch {}
+      }
+      ws.onclose = () => {
+        console.log("WS Closed. Reconnecting in 2s...")
+        setTimeout(connect, 2000)
+      }
+      ws.onerror = () => ws.close()
+    }
+    connect()
+    return () => { wsRef.current?.close() }
+  }, [])
 
-  return { data, status };
+  return state
 }

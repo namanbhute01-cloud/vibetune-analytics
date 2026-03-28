@@ -2,17 +2,18 @@ import { AnimatedCard } from "./AnimatedCard";
 import { Users } from "lucide-react";
 
 interface AgeGaugeProps {
-  avgAge: number;
+  avgAge: string | number;
   ageBreakdown: { range: string; count: number; color: string }[];
   delay?: number;
 }
 
 export function AgeGauge({ avgAge, ageBreakdown, delay = 0 }: AgeGaugeProps) {
   const total = ageBreakdown.reduce((s, b) => s + b.count, 0);
+  const ageNum = typeof avgAge === 'string' ? parseFloat(avgAge) || 0 : avgAge;
 
   const radius = 36;
   const circumference = 2 * Math.PI * radius;
-  const ageNormalized = Math.min(avgAge / 60, 1);
+  const ageNormalized = Math.min(ageNum / 60, 1);
   const offset = circumference * (1 - ageNormalized);
 
   return (

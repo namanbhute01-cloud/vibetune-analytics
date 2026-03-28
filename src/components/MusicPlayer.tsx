@@ -1,90 +1,69 @@
-import React from 'react';
-import { usePlayback } from '@/hooks/usePlayback';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Shuffle, 
-  Volume2,
-  Music
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { usePlayback } from '@/hooks/usePlayback'
+import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
+import { Badge } from '@/components/ui/badge'
+import { SkipBack, Play, Pause, SkipForward, Shuffle, Volume2, Music } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-export const MusicPlayer: React.FC = () => {
-  const { status, play, pause, next, prev, toggleShuffle, setVolume } = usePlayback();
+export function MusicPlayer() {
+  const { status, pause, next, prev, shuffle, setVol } = usePlayback()
 
-  if (!status) return null;
+  if (!status) return null
 
-  const isPlaying = status.playing;
-  const songName = status.song || 'Ready to Play';
-  const progress = status.percent || 0;
-  const volume = status.volume || 70;
-  const group = status.group || 'adults';
+  const song = (status.song || 'None').slice(0, 30) + ((status.song || '').length > 30 ? '...' : '')
 
   return (
-    <div className="bg-background/80 backdrop-blur-md border-t border-border px-4 py-3 h-24 flex items-center justify-between shadow-lg">
-      {/* Left: Song Info & Group Badge */}
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-white/5 px-6 py-3 h-24 flex items-center justify-between shadow-2xl">
+      {/* Left: Info */}
       <div className="flex items-center gap-4 w-1/3">
-        <div className="relative w-14 h-14 bg-accent/20 rounded-md flex items-center justify-center border border-border shadow-inner group">
-          <Music className={cn("w-6 h-6 text-primary", isPlaying && "animate-pulse")} />
-          <div className="absolute -top-1 -right-1">
-             <span className="flex h-2 w-2">
-                <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75", isPlaying ? "animate-ping bg-green-500" : "bg-muted-foreground")} />
-                <span className={cn("relative inline-flex rounded-full h-2 w-2", isPlaying ? "bg-green-500" : "bg-muted-foreground")} />
-             </span>
-          </div>
+        <div className="relative w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
+          <Music className={cn("w-6 h-6 text-primary", !status.paused && "animate-pulse")} />
         </div>
         <div className="flex flex-col overflow-hidden">
-          <span className="font-semibold text-sm truncate">{songName}</span>
+          <span className="text-sm font-bold text-white truncate">{song}</span>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
-              {isPlaying ? 'Now Playing' : 'Paused'}
+            <span className="text-[10px] text-muted-foreground uppercase tracking-tighter">
+              {status.paused ? 'Paused' : 'Now Playing'}
             </span>
-            <span className="text-[10px] font-bold text-primary uppercase bg-primary/10 px-1 rounded">
-                {group}
-            </span>
+            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/30 text-primary uppercase font-bold">
+              {status.group}
+            </Badge>
           </div>
         </div>
       </div>
 
-      {/* Center: Controls & Progress */}
+      {/* Center: Controls */}
       <div className="flex flex-col items-center gap-2 w-1/3 max-w-md">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-white" onClick={() => prev()}>
+            <SkipBack className="w-4 h-4 fill-current" />
+          </Button>
           <Button 
-            variant="ghost" 
             size="icon" 
-            onClick={toggleShuffle}
-            className={cn("hover:text-primary transition-colors h-8 w-8", status.shuffle && "text-primary")}
+            variant="default" 
+            className="h-10 w-10 rounded-full bg-primary text-primary-foreground hover:scale-105 transition-transform" 
+            onClick={() => pause()}
+          >
+            {status.paused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-white" onClick={() => next()}>
+            <SkipForward className="w-4 h-4 fill-current" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className={cn("h-8 w-8 transition-colors", status.shuffle ? "text-primary" : "text-muted-foreground")}
+            onClick={() => shuffle()}
           >
             <Shuffle className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={prev} className="h-8 w-8">
-            <SkipBack className="w-5 h-5 fill-current" />
-          </Button>
-          <Button 
-            variant="default" 
-            size="icon" 
-            className="h-10 w-10 rounded-full bg-primary text-primary-foreground hover:scale-105 transition-transform"
-            onClick={isPlaying ? pause : play}
-          >
-            {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={next} className="h-8 w-8">
-            <SkipForward className="w-5 h-5 fill-current" />
-          </Button>
         </div>
-        <div className="w-full flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-8 text-right font-mono">
-            {Math.floor(progress)}%
+        <div className="w-full flex items-center gap-3">
+          <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">
+            {Math.floor(status.percent || 0)}%
           </span>
-          <Progress value={progress} className="h-1 w-full" />
-          <span className="text-[10px] text-muted-foreground w-8 font-mono">
-            100%
-          </span>
+          <Slider value={[status.percent || 0]} max={100} step={1} disabled className="flex-1 opacity-50" />
+          <span className="text-[10px] font-mono text-muted-foreground w-8">100%</span>
         </div>
       </div>
 
@@ -93,14 +72,14 @@ export const MusicPlayer: React.FC = () => {
         <Volume2 className="w-4 h-4 text-muted-foreground" />
         <div className="w-24">
           <Slider
-            defaultValue={[volume]}
-            max={100}
+            value={[status.volume ?? 70]} 
+            max={100} 
             step={1}
-            onValueChange={(vals) => setVolume(vals[0])}
+            onValueChange={([v]) => setVol(v)}
             className="cursor-pointer"
           />
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
