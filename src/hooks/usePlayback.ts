@@ -29,7 +29,7 @@ export function usePlayback() {
     status,
     pause:   () => api.playbackAction('pause').catch(console.error),
     play:    () => api.playbackAction('play').catch(console.error),
-    next:    () => api.playbackAction('next').catch(console.error),
+    next:    (options?: { group?: string }) => api.playbackAction('next', options).catch(console.error),
     prev:    () => api.playbackAction('prev').catch(console.error),
     shuffle: () => api.playbackAction('shuffle').catch(console.error),
     setVol:  (level: number) => api.playbackAction('volume', { level }).catch(console.error),
