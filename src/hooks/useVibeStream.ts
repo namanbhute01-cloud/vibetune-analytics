@@ -14,27 +14,62 @@ export interface VibeState {
   next_vibe: string | null
 }
 
+export interface DetectionEvent {
+  id: string
+  group: string
+  age: number
+  cam_id: number
+  timestamp: number
+}
+
+export interface VibeStreamData {
+  vibe: VibeState
+  detections: DetectionEvent[]
+  connected: boolean
+}
+
 export function useVibeStream(): VibeState | null {
   const [state, setState] = useState<VibeState | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     function connect() {
-      // MUST use window.location.host — not hardcoded localhost
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`)
+      const ws = new WebSocket(`/ws`)
       wsRef.current = ws
+      
+      ws.onopen = () => {
+        console.log('[VibeStream] WebSocket connected')
+      }
+      
       ws.onmessage = (e) => {
-        try { setState(JSON.parse(e.data)) } catch {}
+        try {
+          const data = JSON.parse(e.data)
+          setState(data)
+        } catch (err) {
+          console.error('[VibeStream] Parse error:', err)
+        }
       }
+      
       ws.onclose = () => {
-        console.log("WS Closed. Reconnecting in 2s...")
-        setTimeout(connect, 2000)
+        console.log('[VibeStream] WebSocket closed. Reconnecting in 2s...')
+        reconnectTimeoutRef.current = setTimeout(connect, 2000)
       }
-      ws.onerror = () => ws.close()
+      
+      ws.onerror = (err) => {
+        console.error('[VibeStream] Error:', err)
+        ws.close()
+      }
     }
+    
     connect()
-    return () => { wsRef.current?.close() }
+    
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      wsRef.current?.close()
+    }
   }, [])
 
   return state

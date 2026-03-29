@@ -3,32 +3,37 @@ import { AnimatedCard } from "@/components/AnimatedCard";
 import { Users, TrendingUp, TrendingDown, Clock, UserCheck, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useVibeStream } from "@/hooks/useVibeStream";
+import { useFaces } from "@/hooks/useFaces";
 import { api } from "@/lib/api";
 
 export default function AudiencePage() {
-  const { data: wsData } = useVibeStream();
+  const vibeState = useVibeStream();
+  const faceStats = useFaces();
   const [journal, setJournal] = useState<any>(null);
 
+  // Poll vibe journal
   useEffect(() => {
-    api.get('/vibe/journal').then(setJournal).catch(() => {});
-    const interval = setInterval(() => api.get('/vibe/journal').then(setJournal).catch(() => {}), 5000);
+    const poll = () => {
+      api.getVibeJournal()
+        .then(setJournal)
+        .catch(err => console.error('[Audience] Journal poll error:', err));
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  const systemStatus = wsData?.type === 'status' ? wsData : null;
-  const faceStats = systemStatus?.faces || { total_unique: 0, by_group: {} };
-  const vibe = systemStatus?.vibe || { journal_size: 0 };
+  const totalUnique = faceStats?.total_unique ?? vibeState?.journal_count ?? 0;
+  const vibeJournalCount = journal?.count ?? vibeState?.journal_count ?? 0;
 
   const ageGroups = [
-    { range: "Kids", count: faceStats.by_group?.kids || 0, color: "hsl(43 96% 56%)" },
-    { range: "Youths", count: faceStats.by_group?.youths || 0, color: "hsl(173 58% 39%)" },
-    { range: "Adults", count: faceStats.by_group?.adults || 0, color: "hsl(262 52% 62%)" },
-    { range: "Seniors", count: faceStats.by_group?.seniors || 0, color: "hsl(346 72% 58%)" },
+    { range: "Kids", count: faceStats?.by_group?.kids ?? 0, color: "hsl(43 96% 56%)" },
+    { range: "Youths", count: faceStats?.by_group?.youths ?? 0, color: "hsl(173 58% 39%)" },
+    { range: "Adults", count: faceStats?.by_group?.adults ?? 0, color: "hsl(262 52% 62%)" },
+    { range: "Seniors", count: faceStats?.by_group?.seniors ?? 0, color: "hsl(346 72% 58%)" },
   ];
 
-  const totalFaces = faceStats.total_unique || 1; // Avoid div by zero
-
-  const recentDetections = wsData?.type === 'detection' ? wsData.data : [];
+  const totalFaces = totalUnique || 1;
 
   return (
     <DashboardLayout>
@@ -52,7 +57,7 @@ export default function AudiencePage() {
                 <Users className="w-6 h-6 text-[hsl(var(--rose))]" />
               </div>
               <div>
-                <p className="text-3xl font-bold">{faceStats.total_unique}</p>
+                <p className="text-3xl font-bold">{totalUnique}</p>
                 <p className="text-xs text-muted-foreground uppercase">Unique Identities</p>
               </div>
             </div>
@@ -63,7 +68,7 @@ export default function AudiencePage() {
                 <UserCheck className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-3xl font-bold">{vibe.journal_size}</p>
+                <p className="text-3xl font-bold">{vibeJournalCount}</p>
                 <p className="text-xs text-muted-foreground uppercase">Vibe Journal Events</p>
               </div>
             </div>
@@ -97,11 +102,11 @@ export default function AudiencePage() {
                     seniors: "hsl(346 72% 58%)"
                 };
                 return (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="flex-1 min-w-[4px] rounded-full transition-all duration-300"
-                    style={{ 
-                        height: '100%', 
+                    style={{
+                        height: '100%',
                         backgroundColor: colorMap[entry] || 'hsl(var(--muted))',
                         animation: `float-in 0.3s ease-out ${i * 20}ms forwards`,
                         opacity: 0
@@ -143,25 +148,25 @@ export default function AudiencePage() {
           </AnimatedCard>
         </div>
 
-        {/* Live detections */}
+        {/* Live detections - using vibe state for real-time updates */}
         <AnimatedCard delay={500}>
             <div className="flex items-center gap-2 mb-4">
                 <UserCheck className="w-4 h-4 text-[hsl(var(--rose))]" />
                 <p className="text-xs uppercase tracking-widest text-muted-foreground">Live Detection Events</p>
             </div>
             <div className="space-y-2">
-                {recentDetections.length > 0 ? recentDetections.map((d: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 animate-in slide-in-from-right-2">
+                {vibeState ? (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
                         <div className="flex items-center gap-4">
-                            <span className="font-mono text-[hsl(var(--info))] text-xs">{d.id}</span>
-                            <span className="text-sm font-medium">{d.group.toUpperCase()}</span>
+                            <span className="font-mono text-[hsl(var(--info))] text-xs">DETECT-{Date.now().toString().slice(-6)}</span>
+                            <span className="text-sm font-medium">{vibeState.detected_group.toUpperCase()}</span>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>Est. Age: {d.age}</span>
-                            <span>Cam: {d.cam_id}</span>
+                            <span>Est. Age: {vibeState.age}</span>
+                            <span>Vibe: {vibeState.current_vibe}</span>
                         </div>
                     </div>
-                )) : (
+                ) : (
                     <div className="py-8 text-center text-muted-foreground text-xs uppercase tracking-widest opacity-20">
                         No active detections
                     </div>

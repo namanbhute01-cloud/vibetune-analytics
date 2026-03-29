@@ -5,16 +5,19 @@ import { useVibeStream } from "@/hooks/useVibeStream";
 import { cn } from "@/lib/utils";
 
 export function NowPlaying() {
-  const { status: polledStatus, play, pause, next, prev, setVolume } = usePlayback();
-  const { data: wsData } = useVibeStream();
+  const { status, play, pause, next, prev, setVol } = usePlayback();
+  const vibeState = useVibeStream();
 
-  // Combine polled state with real-time vibe updates
-  const wsVibe = wsData?.type === 'vibe_update' ? wsData : (wsData?.type === 'status' ? wsData.vibe : null);
-  const wsPlayer = wsData?.type === 'status' ? wsData.player : null;
+  // Merge playback status with vibe state for real-time updates
+  const isPlaying = vibeState?.is_playing ?? status?.playing ?? false;
+  const isPaused = vibeState?.paused ?? status?.paused ?? true;
+  const progress = vibeState?.percent_pos ?? status?.percent ?? 0;
+  const volume = status?.volume ?? 70;
+  const songName = vibeState?.current_song && vibeState.current_song !== "None" 
+    ? vibeState.current_song 
+    : (status?.song && status.song !== "None" ? status.song : "Ready to Play");
 
-  const status = wsPlayer || polledStatus;
-
-  if (!status) return (
+  if (!status && !vibeState) return (
     <AnimatedCard delay={400} className="glow-violet border-[hsl(var(--violet)/0.2)] flex items-center justify-center h-[320px]">
       <div className="text-center space-y-2 opacity-50">
         <Music className="w-12 h-12 mx-auto mb-4 animate-pulse" />
@@ -23,13 +26,7 @@ export function NowPlaying() {
     </AnimatedCard>
   );
 
-  const isPlaying = status.playing ?? wsVibe?.is_playing ?? false;
-  const progress = status.percent ?? wsVibe?.percent_pos ?? 0;
-  const volume = status.volume || 70;
-  const songName = status.song !== "None" ? (status.song || wsVibe?.current_song || "Vibing...") : "Ready to Play";
-
-
-  const currentTime = Math.floor((progress / 100) * 232); // Approximate for UI
+  const currentTime = Math.floor((progress / 100) * 232);
   const mins = Math.floor(currentTime / 60);
   const secs = currentTime % 60;
 
@@ -47,22 +44,22 @@ export function NowPlaying() {
         <div className="flex items-center gap-2 mb-4">
           <Music className="w-4 h-4 text-[hsl(var(--violet))]" />
           <p className="text-xs uppercase tracking-widest text-[hsl(var(--violet))] font-medium">Now Playing</p>
-          <div className={cn("ml-auto flex items-center gap-1.5 text-[10px] font-mono", isPlaying ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
-            <span className={cn("w-1.5 h-1.5 rounded-full", isPlaying ? "bg-[hsl(var(--success))] animate-pulse" : "bg-muted-foreground")} />
-            {isPlaying ? "LIVE" : "PAUSED"}
+          <div className={cn("ml-auto flex items-center gap-1.5 text-[10px] font-mono", !isPaused ? "text-[hsl(var(--success))]" : "text-muted-foreground")}>
+            <span className={cn("w-1.5 h-1.5 rounded-full", !isPaused ? "bg-[hsl(var(--success))]" : "bg-muted-foreground")} />
+            {!isPaused ? "LIVE" : "PAUSED"}
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           {/* Vinyl disc */}
-          <div className="relative w-16 h-16 shrink-0 cursor-pointer group/vinyl" onClick={() => isPlaying ? pause() : play()}>
+          <div className="relative w-16 h-16 shrink-0 cursor-pointer group/vinyl" onClick={() => isPaused ? play() : pause()}>
             <div className={cn(
               "w-16 h-16 rounded-full bg-[hsl(230_20%_8%)] border border-border/50 flex items-center justify-center transition-all duration-300",
-              isPlaying && "animate-[spin_3s_linear_infinite]",
+              !isPaused && "animate-[spin_3s_linear_infinite]",
               "group-hover/vinyl:border-[hsl(var(--violet)/0.5)]"
             )}>
               <div className="w-10 h-10 rounded-full border border-border/30 flex items-center justify-center">
-                <div className="w-4 h-4 rounded-full bg-[hsl(var(--violet)/0.8)] transition-shadow duration-300" style={{ boxShadow: isPlaying ? "0 0 12px hsl(262 52% 62% / 0.5)" : "none" }} />
+                <div className="w-4 h-4 rounded-full bg-[hsl(var(--violet)/0.8)] transition-shadow duration-300" style={{ boxShadow: !isPaused ? "0 0 12px hsl(262 52% 62% / 0.5)" : "none" }} />
               </div>
               <div className="absolute inset-1 rounded-full border border-white/[0.02]" />
               <div className="absolute inset-3 rounded-full border border-white/[0.02]" />
@@ -70,7 +67,7 @@ export function NowPlaying() {
             </div>
             {/* Hover overlay */}
             <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/40 opacity-0 group-hover/vinyl:opacity-100 transition-opacity duration-200">
-              {isPlaying ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
+              {!isPaused ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
             </div>
           </div>
 
@@ -95,11 +92,11 @@ export function NowPlaying() {
             <div
               key={i}
               className={cn("w-[2px] rounded-full transition-colors duration-300",
-                isPlaying ? "bg-[hsl(var(--violet)/0.5)]" : "bg-muted-foreground/20"
+                !isPaused ? "bg-[hsl(var(--violet)/0.5)]" : "bg-muted-foreground/20"
               )}
               style={{
-                animation: isPlaying ? `waveform 0.8s ease-in-out ${i * 0.05}s infinite` : "none",
-                height: isPlaying ? "4px" : `${4 + Math.sin(i * 0.5) * 6}px`,
+                animation: !isPaused ? `waveform 0.8s ease-in-out ${i * 0.05}s infinite` : "none",
+                height: !isPaused ? "4px" : `${4 + Math.sin(i * 0.5) * 6}px`,
                 transformOrigin: "bottom",
                 transition: "height 0.5s ease",
               }}
@@ -113,27 +110,27 @@ export function NowPlaying() {
             <SkipBack className="w-4 h-4" />
           </button>
           <button
-            onClick={() => isPlaying ? pause() : play()}
+            onClick={() => isPaused ? play() : pause()}
             className={cn(
               "w-11 h-11 rounded-full flex items-center justify-center text-white transition-all active:scale-90 duration-150",
-              isPlaying
+              !isPaused
                 ? "bg-[hsl(var(--violet))] hover:bg-[hsl(var(--violet)/0.85)]"
                 : "bg-muted-foreground/30 hover:bg-[hsl(var(--violet))]"
             )}
-            style={{ boxShadow: isPlaying ? "0 0 20px hsl(262 52% 62% / 0.35)" : "none" }}
+            style={{ boxShadow: !isPaused ? "0 0 20px hsl(262 52% 62% / 0.35)" : "none" }}
           >
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+            {!isPaused ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
           </button>
           <button onClick={() => next()} className="text-muted-foreground hover:text-foreground transition-all active:scale-90 duration-150 hover:bg-muted/50 rounded-full p-2 -m-2">
             <SkipForward className="w-4 h-4" />
           </button>
           <div className="ml-auto flex items-center gap-2 text-muted-foreground group/vol">
             <Volume2 className="w-4 h-4 group-hover/vol:text-foreground transition-colors" />
-            <div 
+            <div
               className="w-16 h-1 bg-muted rounded-full overflow-visible relative cursor-pointer"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setVolume(((e.clientX - rect.left) / rect.width) * 100);
+                setVol(((e.clientX - rect.left) / rect.width) * 100);
               }}
             >
               <div className="h-full bg-muted-foreground/50 rounded-full transition-all" style={{ width: `${volume}%` }}>

@@ -5,13 +5,12 @@ import { useCameras } from "@/hooks/useCameras";
 import { useVibeStream } from "@/hooks/useVibeStream";
 
 export default function CamerasPage() {
-  const { list: cameraList } = useCameras();
-  const { data: wsData } = useVibeStream();
+  const cameras = useCameras();
+  const vibeState = useVibeStream();
   
-  const activeCams = cameraList.length;
-  const systemStatus = wsData?.type === 'status' ? wsData : null;
-  const totalPeople = systemStatus?.faces?.total_unique || 0;
-  const liveCount = cameraList.filter(c => c.status === "online").length;
+  const activeCams = cameras.length;
+  const totalPeople = vibeState?.journal_count || 0;
+  const liveCount = cameras.filter(c => c.status === "online").length;
 
   return (
     <DashboardLayout>

@@ -1,13 +1,27 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 
-export function useFaces() {
-  const [data, setData] = useState<any>(null)
+export interface FaceStats {
+  total_unique: number
+  by_group: {
+    kids: number
+    youths: number
+    adults: number
+    seniors: number
+  }
+}
+
+export function useFaces(): FaceStats | null {
+  const [data, setData] = useState<FaceStats | null>(null)
 
   useEffect(() => {
-    const poll = () => api.getFaces().then(setData).catch(() => {})
+    const poll = () => {
+      api.getFaces()
+        .then(setData)
+        .catch(err => console.error('[Faces] Poll error:', err))
+    }
     poll()
-    const id = setInterval(poll, 10000)
+    const id = setInterval(poll, 5000)
     return () => clearInterval(id)
   }, [])
 
