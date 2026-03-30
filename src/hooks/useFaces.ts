@@ -17,11 +17,14 @@ export function useFaces(): FaceStats | null {
   useEffect(() => {
     const poll = () => {
       api.getFaces()
-        .then(setData)
+        .then(faceData => {
+          setData(faceData)
+          console.log('[Faces] Updated:', faceData)
+        })
         .catch(err => console.error('[Faces] Poll error:', err))
     }
     poll()
-    const id = setInterval(poll, 5000)
+    const id = setInterval(poll, 3000)
     return () => clearInterval(id)
   }, [])
 

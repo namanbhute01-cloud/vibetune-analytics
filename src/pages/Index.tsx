@@ -16,9 +16,11 @@ const Dashboard = () => {
   const vibeState = useVibeStream();
   const cameras = useCameras();
   const faceStats = useFaces() || { total_unique: 0, by_group: { kids: 0, youths: 0, adults: 0, seniors: 0 } };
-  
-  // Dynamic stats from VibeState
-  const activeCams = cameras.length;
+
+  // Dynamic stats from VibeState (WebSocket) - primary source
+  // Fallback to cameras hook and faces hook if WebSocket not connected
+  const activeCams = vibeState?.active_cameras ?? cameras.length;
+  const uniqueFacesCount = vibeState?.unique_faces ?? faceStats.total_unique;
   const currentVibe = vibeState?.current_vibe || 'Scanning...';
   const journalCount = vibeState?.journal_count || 0;
   const isPlaying = vibeState?.is_playing || false;
@@ -32,6 +34,13 @@ const Dashboard = () => {
     { range: "Adults", count: faceStats.by_group?.adults || 0, color: "hsl(262 52% 62%)" },
     { range: "Seniors", count: faceStats.by_group?.seniors || 0, color: "hsl(346 72% 58%)" },
   ];
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[Dashboard] vibeState:', vibeState);
+    console.log('[Dashboard] cameras:', cameras.length);
+    console.log('[Dashboard] faceStats:', faceStats);
+  }, [vibeState, cameras, faceStats]);
 
   return (
     <DashboardLayout>
@@ -54,7 +63,7 @@ const Dashboard = () => {
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={Camera} label="Active Cameras" value={activeCams} sub="Streams Online" delay={100} trend="neutral" color="teal" />
-          <StatCard icon={Users} label="Unique Faces" value={faceStats.total_unique} sub="Across all time" delay={160} trend="up" color="rose" />
+          <StatCard icon={Users} label="Unique Faces" value={uniqueFacesCount} sub="Across all time" delay={160} trend="up" color="rose" />
           <StatCard icon={Activity} label="Current Vibe" value={currentVibe.toUpperCase()} sub={`${journalCount} events logged`} delay={220} glow trend="neutral" color="amber" />
           <StatCard icon={Music} label="Music Status" value={isPlaying ? (isPaused ? "PAUSED" : "PLAYING") : "IDLE"} sub={currentSong} delay={280} trend="up" color="violet" />
         </div>

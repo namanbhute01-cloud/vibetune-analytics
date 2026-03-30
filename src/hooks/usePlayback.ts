@@ -17,7 +17,12 @@ export function usePlayback() {
   useEffect(() => {
     const poll = () => {
       api.getPlayback()
-        .then(setStatus)
+        .then(data => {
+          setStatus({
+            ...data,
+            playing: !data.paused
+          })
+        })
         .catch(err => console.error('[Playback] Poll error:', err))
     }
     poll()
@@ -25,13 +30,39 @@ export function usePlayback() {
     return () => clearInterval(id)
   }, [])
 
+  const actions = {
+    pause:   () => {
+      api.playbackAction('pause')
+        .then(() => setStatus(prev => prev ? {...prev, paused: true, playing: false} : prev))
+        .catch(console.error)
+    },
+    play:    () => {
+      api.playbackAction('play')
+        .then(() => setStatus(prev => prev ? {...prev, paused: false, playing: true} : prev))
+        .catch(console.error)
+    },
+    next:    (options?: { group?: string }) => {
+      api.playbackAction('next', options)
+        .catch(console.error)
+    },
+    prev:    () => {
+      api.playbackAction('prev')
+        .catch(console.error)
+    },
+    shuffle: () => {
+      api.playbackAction('shuffle')
+        .then(() => setStatus(prev => prev ? {...prev, shuffle: !prev.shuffle} : prev))
+        .catch(console.error)
+    },
+    setVol:  (level: number) => {
+      api.playbackAction('volume', { level })
+        .then(() => setStatus(prev => prev ? {...prev, volume: level} : prev))
+        .catch(console.error)
+    },
+  }
+
   return {
     status,
-    pause:   () => api.playbackAction('pause').catch(console.error),
-    play:    () => api.playbackAction('play').catch(console.error),
-    next:    (options?: { group?: string }) => api.playbackAction('next', options).catch(console.error),
-    prev:    () => api.playbackAction('prev').catch(console.error),
-    shuffle: () => api.playbackAction('shuffle').catch(console.error),
-    setVol:  (level: number) => api.playbackAction('volume', { level }).catch(console.error),
+    ...actions
   }
 }
