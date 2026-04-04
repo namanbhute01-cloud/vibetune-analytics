@@ -4,6 +4,7 @@ import { Settings as SettingsIcon, Camera, Music, Wifi, Shield, Save, RotateCcw,
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useVibeStream } from "@/hooks/useVibeStream";
+import { api } from "@/lib/api";
 
 type EnvVar = { key: string; value: string; masked: boolean; category: string };
 
@@ -14,19 +15,27 @@ const categories = [
   { id: "system", label: "System", icon: Wifi, color: "primary" },
 ];
 
-type ToggleSetting = { label: string; description: string; key: string; default: boolean };
+// Toggle settings config — keys match UPPERCASE env var names in backend schema
+type ToggleConfig = { label: string; description: string; key: string; default: boolean };
 
-const toggleSettings: ToggleSetting[] = [
-  { label: "Auto-adjust playlist", description: "Automatically change songs based on real-time age detection", key: "auto_playlist", default: true },
-  { label: "Face detection overlay", description: "Show bounding boxes on camera feeds", key: "face_overlay", default: true },
-  { label: "Shuffle mode", description: "Play songs in random order within age group", key: "shuffle_mode", default: true },
-  { label: "Privacy mode", description: "Blur faces in the dashboard feed display", key: "privacy_mode", default: false },
+const toggleSettings: ToggleConfig[] = [
+  { label: "Auto-adjust playlist", description: "Automatically change songs based on real-time age detection", key: "AUTO_PLAYLIST", default: true },
+  { label: "Face detection overlay", description: "Show bounding boxes on camera feeds", key: "FACE_OVERLAY", default: true },
+  { label: "Shuffle mode", description: "Play songs in random order within age group", key: "SHUFFLE_MODE", default: true },
+  { label: "Privacy mode", description: "Blur faces in the dashboard feed display", key: "PRIVACY_MODE", default: false },
 ];
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
   return (
-    <button onClick={onChange} className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? "bg-primary" : "bg-muted"}`}>
-      <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-foreground transition-transform duration-200 ${enabled ? "translate-x-5 bg-primary-foreground" : ""}`} />
+    <button
+      onClick={onChange}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? "bg-primary" : "bg-muted"}`}
+      role="switch"
+      aria-checked={enabled}
+    >
+      <div
+        className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-foreground transition-transform duration-200 ${enabled ? "translate-x-5 bg-primary-foreground" : ""}`}
+      />
     </button>
   );
 }
@@ -42,27 +51,50 @@ export default function SettingsPage() {
   );
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [cameraSources, setCameraSources] = useState<string>("");
+  const [savingCameras, setSavingCameras] = useState(false);
+  const [savingToggles, setSavingToggles] = useState<Record<string, boolean>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
-  // Load env vars from backend (simulated for now - would need actual endpoint)
+  // Load all config from backend on mount
   useEffect(() => {
-    // In production, fetch from /api/config/env
-    const mockEnvVars: EnvVar[] = [
-      { key: "API_HOST", value: "0.0.0.0", masked: false, category: "system" },
-      { key: "API_PORT", value: "8080", masked: false, category: "system" },
-      { key: "DEBUG", value: "true", masked: false, category: "system" },
-      { key: "CAMERA_SOURCES", value: "0", masked: false, category: "cameras" },
-      { key: "TARGET_HEIGHT", value: "720", masked: false, category: "cameras" },
-      { key: "FRAME_RATE_LIMIT", value: "15", masked: false, category: "cameras" },
-      { key: "FACE_DETECTION_CONF", value: "0.5", masked: false, category: "detection" },
-      { key: "PERSON_DETECTION_CONF", value: "0.4", masked: false, category: "detection" },
-      { key: "FACE_SIMILARITY_THRESHOLD", value: "0.65", masked: false, category: "detection" },
-      { key: "ROOT_MUSIC_DIR", value: "./OfflinePlayback", masked: false, category: "music" },
-      { key: "DEFAULT_VOLUME", value: "70", masked: false, category: "music" },
-      { key: "SHUFFLE_MODE", value: "true", masked: false, category: "music" },
-      { key: "GDRIVE_FOLDER_ID", value: "your_google_drive_folder_id_here", masked: true, category: "system" },
-    ];
-    setEnvVars(mockEnvVars);
-    setLoading(false);
+    const loadData = async () => {
+      try {
+        // Load camera config
+        const camConfig = await api.getCameraConfig();
+        if (camConfig.sources) {
+          setCameraSources(camConfig.sources.join(", "));
+        }
+
+        // Load env vars from backend (replaces mock data)
+        const envVarsResp = await api.getEnvVars();
+        if (envVarsResp.ok && envVarsResp.env_vars) {
+          setEnvVars(envVarsResp.env_vars);
+        }
+
+        // Load toggle settings from backend
+        const settingsResp = await api.getSettings();
+        if (settingsResp.ok && settingsResp.settings) {
+          const backendSettings = settingsResp.settings;
+          // Map uppercase keys from backend to toggle state
+          setToggles(prev => {
+            const updated = { ...prev };
+            toggleSettings.forEach(toggle => {
+              if (backendSettings[toggle.key] !== undefined) {
+                updated[toggle.key] = Boolean(backendSettings[toggle.key]);
+              }
+            });
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load config:", error);
+        toast.error("Failed to load configuration");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   const filteredVars = envVars.filter(v => v.category === activeCategory);
@@ -72,12 +104,32 @@ export default function SettingsPage() {
     setEditValue(env.value);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingKey) return;
-    setEnvVars(prev => prev.map(v => v.key === editingKey ? { ...v, value: editValue } : v));
-    setEditingKey(null);
-    toast.success(`${editingKey} updated`);
-    // In production: POST to /api/config/env
+    setSavingEdit(true);
+
+    try {
+      const result = await api.updateEnvVar(editingKey, editValue);
+
+      if (result.ok) {
+        // Update local state with confirmed value from backend
+        setEnvVars(prev => prev.map(v => v.key === editingKey ? { ...v, value: editValue } : v));
+        setEditingKey(null);
+        toast.success(`${editingKey} updated and saved to .env`);
+
+        // If we edited camera sources, update the camera sources field too
+        if (editingKey === "CAMERA_SOURCES") {
+          setCameraSources(editValue);
+        }
+      } else {
+        toast.error("Failed to save", { description: result.error });
+      }
+    } catch (error) {
+      console.error("Save edit error:", error);
+      toast.error("Failed to save setting");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const cancelEdit = () => {
@@ -93,14 +145,87 @@ export default function SettingsPage() {
     });
   };
 
-  const handleSaveAll = () => {
-    toast.success("Settings saved", { description: "Configuration updated" });
-    // In production: POST to /api/config/save
+  const handleSaveCameras = async () => {
+    setSavingCameras(true);
+    try {
+      const sources = cameraSources.split(",").map(s => s.trim()).filter(s => s !== "");
+
+      if (sources.length === 0) {
+        toast.error("At least one camera source is required");
+        return;
+      }
+
+      const result = await api.saveCameraConfig(sources);
+
+      if (result.ok) {
+        toast.success("Camera sources saved", {
+          description: `Updated to ${sources.length} source(s). Restart required for some changes.`
+        });
+        // Also update the CAMERA_SOURCES env var display
+        setEnvVars(prev => prev.map(v =>
+          v.key === "CAMERA_SOURCES" ? { ...v, value: cameraSources } : v
+        ));
+      } else {
+        toast.error("Failed to save", { description: result.error });
+      }
+    } catch (error) {
+      console.error("Error saving camera config:", error);
+      toast.error("Failed to save camera sources");
+    } finally {
+      setSavingCameras(false);
+    }
   };
 
-  const handleReset = () => {
-    setToggles(Object.fromEntries(toggleSettings.map(s => [s.key, s.default])));
-    toast.info("Settings reset to defaults");
+  const handleReset = async () => {
+    try {
+      // Reset toggles to defaults in backend
+      const defaults: Record<string, boolean> = {};
+      toggleSettings.forEach(s => { defaults[s.key] = s.default; });
+      await api.saveSettings(defaults);
+
+      // Update local state
+      setToggles(Object.fromEntries(toggleSettings.map(s => [s.key, s.default])));
+      toast.success("Settings reset to defaults and saved to .env");
+
+      // Reload env vars to reflect changes
+      const envVarsResp = await api.getEnvVars();
+      if (envVarsResp.ok && envVarsResp.env_vars) {
+        setEnvVars(envVarsResp.env_vars);
+      }
+    } catch (error) {
+      console.error("Reset error:", error);
+      toast.error("Failed to reset settings");
+    }
+  };
+
+  const handleToggleChange = async (key: string, newValue: boolean) => {
+    // Optimistic update
+    setToggles(prev => ({ ...prev, [key]: newValue }));
+    setSavingToggles(prev => ({ ...prev, [key]: true }));
+
+    try {
+      // Send with UPPERCASE key to match backend schema
+      const result = await api.saveSettings({ [key]: newValue });
+      if (result.ok) {
+        toast.success(`${toggleSettings.find(s => s.key === key)?.label || key} updated and saved to .env`);
+
+        // Reload env vars to reflect the change in the env vars list too
+        const envVarsResp = await api.getEnvVars();
+        if (envVarsResp.ok && envVarsResp.env_vars) {
+          setEnvVars(envVarsResp.env_vars);
+        }
+      } else {
+        // Revert on error
+        setToggles(prev => ({ ...prev, [key]: !newValue }));
+        toast.error("Failed to save setting", { description: result.error });
+      }
+    } catch (error) {
+      console.error("Toggle save error:", error);
+      setToggles(prev => ({ ...prev, [key]: !newValue }));
+      toast.error("Failed to save setting");
+    } finally {
+      setSavingToggles(prev => ({ ...prev, [key]: false }));
+    }
   };
 
   return (
@@ -119,8 +244,8 @@ export default function SettingsPage() {
             <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border/50 text-xs text-muted-foreground hover:bg-muted/50 transition-colors">
               <RotateCcw className="w-3.5 h-3.5" /> Reset
             </button>
-            <button onClick={handleSaveAll} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors">
-              <Save className="w-3.5 h-3.5" /> Save All
+            <button onClick={handleSaveCameras} disabled={savingCameras} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors disabled:opacity-50">
+              <Save className="w-3.5 h-3.5" /> {savingCameras ? "Saving..." : "Save All"}
             </button>
           </div>
         </div>
@@ -151,6 +276,41 @@ export default function SettingsPage() {
               ))}
             </div>
 
+            {/* Camera Sources Editor (shown in cameras tab) */}
+            {activeCategory === "cameras" && (
+              <AnimatedCard delay={180}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-[hsl(var(--info))]" />
+                    <h3 className="text-sm font-medium">Camera Sources</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter camera sources separated by commas. Use <code className="bg-muted px-1 rounded">0</code> for default webcam, or URLs for IP cameras.
+                  </p>
+                  <textarea
+                    value={cameraSources}
+                    onChange={(e) => setCameraSources(e.target.value)}
+                    placeholder="0, http://192.168.1.100:8080/video, rtsp://camera-ip/stream"
+                    className="w-full h-24 text-sm bg-card border border-border/50 rounded-lg px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--info))/0.5] transition-colors resize-none"
+                  />
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      onClick={() => setCameraSources("0")}
+                      className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      Default Webcam
+                    </button>
+                    <button
+                      onClick={() => setCameraSources("0, http://192.168.29.173:8080/video")}
+                      className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      + IP Camera
+                    </button>
+                  </div>
+                </div>
+              </AnimatedCard>
+            )}
+
             {/* Var list */}
             <AnimatedCard delay={200}>
               {loading ? (
@@ -175,10 +335,15 @@ export default function SettingsPage() {
                               <input
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEdit();
+                                  if (e.key === "Escape") cancelEdit();
+                                }}
                                 className="flex-1 text-sm bg-card border border-border/50 rounded px-2 py-1 font-mono focus:outline-none focus:border-primary/50"
                                 autoFocus
+                                disabled={savingEdit}
                               />
-                              <button onClick={saveEdit} className="p-1 rounded hover:bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] transition-colors"><Check className="w-4 h-4" /></button>
+                              <button onClick={saveEdit} disabled={savingEdit} className="p-1 rounded hover:bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] transition-colors disabled:opacity-50"><Check className="w-4 h-4" /></button>
                               <button onClick={cancelEdit} className="p-1 rounded hover:bg-destructive/20 text-destructive transition-colors"><X className="w-4 h-4" /></button>
                             </div>
                           ) : (
@@ -224,10 +389,15 @@ export default function SettingsPage() {
                       <p className="text-sm font-medium">{setting.label}</p>
                       <p className="text-[11px] text-muted-foreground">{setting.description}</p>
                     </div>
-                    <Toggle
-                      enabled={toggles[setting.key]}
-                      onChange={() => setToggles(prev => ({ ...prev, [setting.key]: !prev[setting.key] }))}
-                    />
+                    <div className="flex items-center gap-1">
+                      {savingToggles[setting.key] && (
+                        <span className="text-[10px] text-muted-foreground">Saving...</span>
+                      )}
+                      <Toggle
+                        enabled={toggles[setting.key]}
+                        onChange={() => handleToggleChange(setting.key, !toggles[setting.key])}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

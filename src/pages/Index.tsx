@@ -6,27 +6,35 @@ import { NowPlaying } from "@/components/NowPlaying";
 import { AgeGauge } from "@/components/AgeGauge";
 import { PlaylistQueue } from "@/components/PlaylistQueue";
 import { LiveClock } from "@/components/LiveClock";
-import { Camera, Users, Music, Activity, Flame } from "lucide-react";
+import { Camera, Users, Music, Activity, Flame, Plus } from "lucide-react";
 import { useVibeStream } from "@/hooks/useVibeStream";
 import { useCameras } from "@/hooks/useCameras";
 import { useFaces } from "@/hooks/useFaces";
 import { api } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const vibeState = useVibeStream();
   const cameras = useCameras();
   const faceStats = useFaces() || { total_unique: 0, by_group: { kids: 0, youths: 0, adults: 0, seniors: 0 } };
 
   // Dynamic stats from VibeState (WebSocket) - primary source
   // Fallback to cameras hook and faces hook if WebSocket not connected
-  const activeCams = vibeState?.active_cameras ?? cameras.length;
-  const uniqueFacesCount = vibeState?.unique_faces ?? faceStats.total_unique;
+  const activeCams = vibeState?.active_cameras ?? cameras.length ?? 0;
+  const uniqueFacesCount = vibeState?.unique_faces ?? faceStats.total_unique ?? 0;
   const currentVibe = vibeState?.current_vibe || 'Scanning...';
   const journalCount = vibeState?.journal_count || 0;
   const isPlaying = vibeState?.is_playing || false;
   const isPaused = vibeState?.paused || false;
   const currentSong = vibeState?.current_song || 'Idle';
   const avgAge = vibeState?.age || '...';
+
+  const handleAddTrack = () => {
+    navigate('/playlist');
+    toast.info("Navigate to Playlist", { description: "Add songs from the Playlist page" });
+  };
 
   const ageBreakdown = [
     { range: "Kids", count: faceStats.by_group?.kids || 0, color: "hsl(43 96% 56%)" },
@@ -79,8 +87,14 @@ const Dashboard = () => {
           </div>
 
           <div className="space-y-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Ambiance Engine</h2>
+              <button
+                onClick={handleAddTrack}
+                className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-colors"
+              >
+                <Plus className="w-3 h-3" /> Add Track
+              </button>
               <div className="flex-1 h-px bg-white/5" />
             </div>
             <NowPlaying />

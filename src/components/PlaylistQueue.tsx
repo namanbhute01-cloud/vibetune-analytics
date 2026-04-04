@@ -1,9 +1,11 @@
 import { AnimatedCard } from "./AnimatedCard";
-import { ListMusic, Play, Pause, MoreHorizontal, Music } from "lucide-react";
+import { ListMusic, Play, Pause, MoreHorizontal, Music, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useVibeStream } from "@/hooks/useVibeStream";
+import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 interface Track {
   title: string;
@@ -12,12 +14,16 @@ interface Track {
 }
 
 export function PlaylistQueue() {
+  const navigate = useNavigate();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
-  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const { status, pause, play, next } = usePlayback();
   const vibeState = useVibeStream();
+
+  const handleAddTrack = () => {
+    navigate('/playlist');
+  };
 
   // Load library from backend
   useEffect(() => {
@@ -52,7 +58,6 @@ export function PlaylistQueue() {
     const track = tracks[index];
     if (track) {
       next({ group: track.group });
-      setPlayingIndex(index);
     }
   };
 
@@ -85,7 +90,13 @@ export function PlaylistQueue() {
       <div className="flex items-center gap-2 mb-4">
         <ListMusic className="w-4 h-4 text-primary" />
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Up Next</p>
-        <span className="ml-auto text-[10px] text-primary font-medium cursor-pointer hover:underline underline-offset-2 transition-colors hover:text-primary/80 active:scale-95">
+        <span className="ml-auto text-[10px] text-primary font-medium cursor-pointer hover:underline underline-offset-2 transition-colors hover:text-primary/80 active:scale-95 flex items-center gap-1">
+          <button
+            onClick={handleAddTrack}
+            className="flex items-center gap-0.5 px-2 py-0.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors"
+          >
+            <Plus className="w-3 h-3" /> Add
+          </button>
           {tracks.length} tracks
         </span>
       </div>

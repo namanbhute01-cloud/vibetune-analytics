@@ -22,8 +22,12 @@ export const useWebSocket = (url?: string) => {
     };
 
     socket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setData(message);
+      try {
+        const message = JSON.parse(event.data);
+        setData(message);
+      } catch (err) {
+        console.warn('[WebSocket] Failed to parse message:', event.data, err);
+      }
     };
 
     socket.onclose = () => {

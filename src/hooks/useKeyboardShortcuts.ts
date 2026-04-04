@@ -32,15 +32,14 @@ export function useKeyboardShortcuts() {
 
       switch (e.code) {
         case 'Space':
-          e.preventDefault()
-          // Toggle play/pause
-          play()
-          setTimeout(() => pause(), 100)
-          break
         case 'KeyK':
           e.preventDefault()
-          play()
-          setTimeout(() => pause(), 100)
+          // Toggle play/pause
+          if (status?.paused) {
+            play()
+          } else {
+            pause()
+          }
           break
         case 'ArrowRight':
           e.preventDefault()

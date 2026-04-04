@@ -5,6 +5,7 @@ export interface VibeState {
   detected_group: string
   current_vibe: string
   age: string
+  average_age: number
   journal_count: number
   percent_pos: number
   is_playing: boolean
@@ -12,6 +13,8 @@ export interface VibeState {
   shuffle: boolean
   current_song: string
   next_vibe: string | null
+  active_cameras: number
+  unique_faces: number
 }
 
 export interface DetectionEvent {

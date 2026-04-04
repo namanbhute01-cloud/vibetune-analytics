@@ -1,11 +1,12 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AnimatedCard } from "@/components/AnimatedCard";
-import { Music, Play, Pause, SkipForward, Shuffle, Plus, Search, Filter, Disc } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Music, Play, Pause, SkipForward, Shuffle, Plus, Search, Filter, Disc, Upload, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useVibeStream } from "@/hooks/useVibeStream";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Track = { id: string; title: string; group: string };
 
@@ -18,6 +19,13 @@ export default function PlaylistPage() {
   const [ageFilter, setAgeFilter] = useState("All");
   const { status, pause, play, next } = usePlayback();
   const vibeState = useVibeStream();
+  
+  // Add track modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState("adults");
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load library from backend
   useEffect(() => {
@@ -55,9 +63,82 @@ export default function PlaylistPage() {
   const isPlaying = !(vibeState?.paused ?? status?.paused ?? true);
 
   const handlePlayTrack = (track: Track) => {
-    // For now, just show it's selected - actual playback requires backend action
     console.log('[Playlist] Selected:', track);
-    // Could add a "play this track" endpoint later
+    toast.info(`Selected: ${track.title}`, { description: track.group });
+  };
+
+  const handleAddTrack = () => {
+    setShowAddModal(true);
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (!file) return;
+    
+    // Validate file type
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/ogg'];
+    const allowedExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg'];
+    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+      toast.error("Invalid file type", { description: "Please upload MP3, WAV, FLAC, M4A, or OGG files" });
+      return;
+    }
+    
+    uploadFile(file);
+  };
+
+  const uploadFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const result = await api.addSong(file, selectedGroup);
+      
+      if (result.ok) {
+        toast.success("Song added!", { 
+          description: `${result.filename} added to ${result.group} folder` 
+        });
+        setShowAddModal(false);
+        // Reload library
+        const lib = await api.getLibrary();
+        const allTracks: Track[] = [];
+        Object.entries(lib).forEach(([group, files]) => {
+          (files as string[]).forEach((file, idx) => {
+            allTracks.push({
+              id: `${group}-${idx}`,
+              title: file.replace(/\.[^/.]+$/, ""),
+              group: group
+            });
+          });
+        });
+        setTracks(allTracks);
+      } else {
+        toast.error("Failed to add song", { description: result.error });
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Upload failed", { description: "Please try again" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
   };
 
   return (
@@ -73,7 +154,10 @@ export default function PlaylistPage() {
             <p className="text-sm text-muted-foreground mt-1">Manage tracks & age-group mappings</p>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors">
+            <button 
+              onClick={handleAddTrack}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors"
+            >
               <Plus className="w-3.5 h-3.5" /> Add Track
             </button>
           </div>
@@ -139,7 +223,7 @@ export default function PlaylistPage() {
             </p>
             <p className="text-[10px] text-muted-foreground">Organized by age group</p>
           </div>
-          
+
           {loading ? (
             <div className="py-12 text-center text-muted-foreground">
               <Music className="w-12 h-12 mx-auto mb-4 opacity-20" />
@@ -189,10 +273,94 @@ export default function PlaylistPage() {
           )}
         </AnimatedCard>
       </div>
+
+      {/* Add Track Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 border border-border/50" onClick={e => e.stopPropagation()} style={{ animation: "float-in 0.3s ease-out" }}>
+            <div className="flex items-center justify-between p-4 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <Upload className="w-5 h-5 text-[hsl(var(--violet))]" />
+                <h3 className="text-lg font-semibold">Add Track</h3>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Group Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Age Group</label>
+                <div className="flex gap-2">
+                  {["kids", "youths", "adults", "seniors"].map(group => (
+                    <button
+                      key={group}
+                      onClick={() => setSelectedGroup(group)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize ${
+                        selectedGroup === group
+                          ? "bg-[hsl(var(--violet))/0.15] text-[hsl(var(--violet))] border border-[hsl(var(--violet))/0.3]"
+                          : "text-muted-foreground border border-border/50 hover:bg-muted/30"
+                      }`}
+                    >
+                      {group}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* File Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Audio File</label>
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    dragActive 
+                      ? "border-[hsl(var(--violet))] bg-[hsl(var(--violet))/0.05]" 
+                      : "border-border/50 hover:border-[hsl(var(--violet))/0.5]"
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground opacity-50" />
+                  <p className="text-sm font-medium mb-1">Drop audio file here</p>
+                  <p className="text-xs text-muted-foreground mb-3">or click to browse</p>
+                  <p className="text-[10px] text-muted-foreground">MP3, WAV, FLAC, M4A, OGG</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".mp3,.wav,.flac,.m4a,.ogg,audio/*"
+                    onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-3 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs hover:bg-primary/90 transition-colors"
+                  >
+                    Browse Files
+                  </button>
+                </div>
+              </div>
+              
+              {uploading && (
+                <div className="text-center text-sm text-muted-foreground">
+                  <p>Uploading...</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-border/50 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 rounded-lg border border-border/50 text-xs hover:bg-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
-}
-
-function cn(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(' ');
 }
